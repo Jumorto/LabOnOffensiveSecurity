@@ -29,8 +29,10 @@ def print_commands():
         scan_if       - Scan for available interfaces
         scan_hosts    - Scan for available hosts on a given interface
                         Params: -iface <interface>
-        arppoison     - Start arp poison, with optional aggresive or silent modes
+        arppoison     - Start arp poison, with optional aggresive or persistant modes
                         Params: -tgtip <target_ip> -spip <spoofed_ip> [-mode <mode>]
+        arpstealth    - Start stealthy arp poison
+                        Params: -tgtip <target_ip> -spip <spoofed_ip> [-iface <iface<]
         dnsspoof      - Start dns spoof attack on a chosen target and domain 
                         Params: -iface <interface> -tgtip <target_ip> -dom <domain> -spaddr <spoofed_address>
         sslstrip      - Start SSL stripping attack
@@ -59,7 +61,7 @@ def handle_command(cmd):
     elif cmd.startswith("arppoison"):
 		# Basic arp poison
         start_arp_poison(cmd)
-    elif cmd.startswith("arpsteath"):
+    elif cmd.startswith("arpstealth"):
 		# Basic arp poison
         stealth_arp_spoof(cmd)
     elif cmd.startswith("dnsspoof"):

