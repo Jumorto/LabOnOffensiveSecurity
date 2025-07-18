@@ -59,6 +59,9 @@ def handle_command(cmd):
     elif cmd.startswith("arppoison"):
 		# Basic arp poison
         start_arp_poison(cmd)
+    elif cmd.startswith("arpsteath"):
+		# Basic arp poison
+        stealth_arp_spoof(cmd)
     elif cmd.startswith("dnsspoof"):
 		# Basic dns spoofing
         start_dns_spoofing(cmd)
