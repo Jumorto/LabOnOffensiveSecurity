@@ -1,7 +1,7 @@
 import os
 import shlex
 from scan import scan_hosts, scan_ifaces
-from arp_spoofing import *
+from arp_poisoning import *
 from dns_spoofing import start_dns_spoofing
 import scapy.all as sc
 from sslstripping_script import *
@@ -29,7 +29,7 @@ def print_commands():
         scan_if       - Scan for available interfaces
         scan_hosts    - Scan for available hosts on a given interface
                         Params: -iface <interface>
-        arppoison     - Start arp poison, with optional aggresive or persistant modes
+        arppoison     - Start arp poison, with optional mode aggressive 
                         Params: -tgtip <target_ip> -spip <spoofed_ip> [-mode <mode>]
         arpstealth    - Start stealthy arp poison
                         Params: -tgtip <target_ip> -spip <spoofed_ip> [-iface <iface<]
@@ -63,7 +63,7 @@ def handle_command(cmd):
         start_arp_poison(cmd)
     elif cmd.startswith("arpstealth"):
 		# Basic arp poison
-        stealth_arp_spoof(cmd)
+        stealth_arp_poison(cmd)
     elif cmd.startswith("dnsspoof"):
 		# Basic dns spoofing
         start_dns_spoofing(cmd)

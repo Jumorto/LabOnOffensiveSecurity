@@ -47,7 +47,7 @@ def start_limited_arp_thread(target_ip, spoofed_ip, count):
 def start_arp_poison(cmd):
     args = shlex.split(cmd)
     target_ip = spoofed_ip =  None
-    interval = 5 # default value
+    interval = 10 # default value
     for i, arg in enumerate(args):
         if arg == "-tgtip" and i + 1 < len(args):
             target_ip = args[i + 1]
@@ -55,10 +55,8 @@ def start_arp_poison(cmd):
             spoofed_ip = args[i + 1]
         elif arg == "-mode" and i + 1 < len(args):
             mode = args[i + 1]
-            if mode == "aggresive":
+            if mode == "aggressive":
                 interval = 1
-            elif mode == "persistant":
-                interval = 60
     if not target_ip or not spoofed_ip:
         print("[!] Usage: arp_poison -tgtip <target_ip> -spip <spoofed_ip>")
         return
@@ -84,7 +82,7 @@ def start_arp_poison_ssl(cmd):
     start_arp_thread(spoofed_ip, target_ip, 5)
     
 
-def stealth_arp_spoof(cmd):
+def stealth_arp_poison(cmd):
     args = shlex.split(cmd)
     target_ip = spoofed_ip = interface = None
 
