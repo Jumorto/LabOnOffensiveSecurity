@@ -4,7 +4,7 @@ from scan import scan_hosts, scan_ifaces
 from arp_poisoning import *
 from dns_spoofing import start_dns_spoofing
 import scapy.all as sc
-from sslstripping_script import *
+from sslstripping_proxy import *
 import time
 
 def print_title():
@@ -32,7 +32,7 @@ def print_commands():
         arppoison     - Start arp poison, with optional mode aggressive 
                         Params: -tgtip <target_ip> -spip <spoofed_ip> [-mode <mode>]
         arpstealth    - Start stealthy arp poison
-                        Params: -tgtip <target_ip> -spip <spoofed_ip> [-iface <iface<]
+                        Params: -tgtip <target_ip> -spip <spoofed_ip> [-iface <iface>]
         dnsspoof      - Start dns spoof attack on a chosen target and domain 
                         Params: -iface <interface> -tgtip <target_ip> -dom <domain> -spaddr <spoofed_address>
         sslstrip      - Start SSL stripping attack
@@ -69,15 +69,15 @@ def handle_command(cmd):
         start_dns_spoofing(cmd)
     elif cmd.startswith("sslstrip"):
         # Clear any process on port 8080 in order to start the SSL proxy
-        stop_process8080()
-        # Flush the content of iptables
-        stop_iptables_redirect()
-		# Start IP table
-        start_iptables_redirect()
+        # stop_process8080()
+        # # Flush the content of iptables
+        # stop_iptables_redirect()
+		# # Start IP table
+        # start_iptables_redirect()
         # Start SSL stripping proxy
-        start_sslstrip()
+        start_proxy()
         # Start ARP poisoning for SSL stripping
-        start_arp_poison_ssl(cmd)
+        #start_arp_poison_ssl(cmd)
     elif cmd == "help":
         print_commands()
     elif cmd == "exit":
@@ -92,7 +92,8 @@ def main():
     print_commands()
     while True:
         try:
-            cmd = raw_input(">> ")
+            #cmd = raw_input(">> ")
+            cmd = input(">>")
             handle_command(cmd)
         except KeyboardInterrupt:
             print("\n[!] Interrupted. Type 'exit' to quit.")
