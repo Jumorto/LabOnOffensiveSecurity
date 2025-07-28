@@ -14,7 +14,7 @@ def print_title():
         print (text)
         time.sleep(delay)
 
-    print ("[:: GROUP 5 - DEFAULT PROJECT ::]\n")
+    print ("[:: DEFAULT PROJECT ::]\n")
     pause("> Initializing modules...", 0.3)
     pause("   + ARP Poisoning", 0.2)
     pause("   + DNS Spoofing", 0.2)
