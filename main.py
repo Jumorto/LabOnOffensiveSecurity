@@ -59,25 +59,18 @@ def handle_command(cmd):
                 iface = args[i + 1]
         scan_hosts(iface)
     elif cmd.startswith("arppoison"):
-		# Basic arp poison
+		# Arp poison
         start_arp_poison(cmd)
     elif cmd.startswith("arpstealth"):
-		# Basic arp poison
+		# Stealth arp poison
         stealth_arp_poison(cmd)
     elif cmd.startswith("dnsspoof"):
-		# Basic dns spoofing
+		# DNS spoofing
         start_dns_spoofing(cmd)
     elif cmd.startswith("sslstrip"):
-        # Clear any process on port 8080 in order to start the SSL proxy
-        # stop_process8080()
-        # # Flush the content of iptables
-        # stop_iptables_redirect()
-		# # Start IP table
-        # start_iptables_redirect()
-        # Start SSL stripping proxy
-        start_proxy()
-        # Start ARP poisoning for SSL stripping
-        #start_arp_poison_ssl(cmd)
+        # SSL stripping
+        start_sslstrip_proxy()
+        start_arp_poison_ssl(cmd)
     elif cmd == "help":
         print_commands()
     elif cmd == "exit":
@@ -92,8 +85,7 @@ def main():
     print_commands()
     while True:
         try:
-            #cmd = raw_input(">> ")
-            cmd = input(">>")
+            cmd = raw_input(">> ")
             handle_command(cmd)
         except KeyboardInterrupt:
             print("\n[!] Interrupted. Type 'exit' to quit.")
