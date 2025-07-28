@@ -7,7 +7,7 @@ from StringIO import StringIO
 import errno
 
 ATTACKER_IP = "0.0.0.0"
-ATTACKER_PORT = 80
+ATTACKER_PORT = 8080
 
 
 class SSLStripProxy(BaseHTTPRequestHandler):
