@@ -1,5 +1,5 @@
 from scapy.all import *
-from arp_spoofing import * 
+from arp_poisoning import * 
 
 dns_server_ip = ""
 dns_server_mac = ""

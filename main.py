@@ -1,10 +1,10 @@
 import os
 import shlex
 from scan import scan_hosts, scan_ifaces
-from arp_spoofing import *
+from arp_poisoning import *
 from dns_spoofing import start_dns_spoofing
 import scapy.all as sc
-from sslstripping_script import *
+from sslstripping_proxy import *
 import time
 
 def print_title():
@@ -14,7 +14,7 @@ def print_title():
         print (text)
         time.sleep(delay)
 
-    print ("[:: GROUP 5 - DEFAULT PROJECT ::]\n")
+    print ("[:: DEFAULT PROJECT ::]\n")
     pause("> Initializing modules...", 0.3)
     pause("   + ARP Poisoning", 0.2)
     pause("   + DNS Spoofing", 0.2)
@@ -29,8 +29,10 @@ def print_commands():
         scan_if       - Scan for available interfaces
         scan_hosts    - Scan for available hosts on a given interface
                         Params: -iface <interface>
-        arppoison     - Start arp poison, with optional aggresive or silent modes
+        arppoison     - Start arp poison, with optional mode aggressive 
                         Params: -tgtip <target_ip> -spip <spoofed_ip> [-mode <mode>]
+        arpstealth    - Start stealthy arp poison
+                        Params: -tgtip <target_ip> -spip <spoofed_ip> [-iface <iface>]
         dnsspoof      - Start dns spoof attack on a chosen target and domain 
                         Params: -iface <interface> -tgtip <target_ip> -dom <domain> -spaddr <spoofed_address>
         sslstrip      - Start SSL stripping attack
@@ -57,21 +59,17 @@ def handle_command(cmd):
                 iface = args[i + 1]
         scan_hosts(iface)
     elif cmd.startswith("arppoison"):
-		# Basic arp poison
+		# Arp poison
         start_arp_poison(cmd)
+    elif cmd.startswith("arpstealth"):
+		# Stealth arp poison
+        stealth_arp_poison(cmd)
     elif cmd.startswith("dnsspoof"):
-		# Basic dns spoofing
+		# DNS spoofing
         start_dns_spoofing(cmd)
     elif cmd.startswith("sslstrip"):
-        # Clear any process on port 8080 in order to start the SSL proxy
-        stop_process8080()
-        # Flush the content of iptables
-        stop_iptables_redirect()
-		# Start IP table
-        start_iptables_redirect()
-        # Start SSL stripping proxy
-        start_sslstrip()
-        # Start ARP poisoning for SSL stripping
+        # SSL stripping
+        start_sslstrip_proxy()
         start_arp_poison_ssl(cmd)
     elif cmd == "help":
         print_commands()
